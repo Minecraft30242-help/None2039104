@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JPEG ↔ SVG Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .upload-subtext {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .format-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .format-btn {
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid #667eea;
+            color: #667eea;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .format-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .format-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .quality-selector {
+            margin: 20px 0;
+            display: none;
+            text-align: left;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .quality-label {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .quality-slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            margin: 10px 0;
+        }
+
+        .quality-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .quality-value {
+            font-size: 1em;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .preview-container {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            background: #f9f9f9;
+            display: none;
+        }
+
+        .preview-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .info-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-message {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .upload-area {
+                padding: 40px 15px;
+            }
+
+            .upload-icon {
+                font-size: 3em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JPEG ↔ SVG Converter</h1>
+        <p class="subtitle">Convert between JPEG and SVG formats with embedded image data</p>
+
+        <div class="format-selector">
+            <button class="format-btn active" onclick="setConversionMode('jpeg-to-svg')" id="jpegToSvgBtn">
+                📷 → 🖼️ JPEG to SVG
+            </button>
+            <button class="format-btn" onclick="setConversionMode('svg-to-jpeg')" id="svgToJpegBtn">
+                🖼️ → 📷 SVG to JPEG
+            </button>
+        </div>
+
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()" id="uploadArea">
+            <span class="upload-icon">📷</span>
+            <div class="upload-text" id="uploadText">Click to select a JPEG file</div>
+            <div class="upload-subtext" id="uploadSubtext">or drag and drop your image here</div>
+        </div>
+
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,image/jpeg" multiple="false">
+
+        <div class="quality-selector" id="qualitySelector">
+            <div class="quality-label">JPEG Quality: <span class="quality-value" id="qualityValue">85%</span></div>
+            <input type="range" class="quality-slider" id="qualitySlider" min="10" max="100" value="85">
+        </div>
+
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="renderCanvas"></canvas>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="status-message" id="statusMessage"></div>
+
+        <div class="preview-container" id="previewContainer">
+            <h3 class="preview-title">Image Preview</h3>
+            <img class="image-preview" id="imagePreview" alt="Preview">
+            
+            <div class="info-grid" id="infoGrid">
+                <div class="info-item">
+                    <div class="info-label">Original Size</div>
+                    <div class="info-value" id="originalSize">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Dimensions</div>
+                    <div class="info-value" id="dimensions">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">File Type</div>
+                    <div class="info-value" id="fileType">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">SVG Size</div>
+                    <div class="info-value" id="svgSize">-</div>
+                </div>
+            </div>
+
+            <button class="btn" onclick="downloadFile()" id="downloadBtn" disabled>
+                📥 <span id="downloadBtnText">Download SVG</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentSVGData = null;
+        let currentJPEGData = null;
+        let currentFileName = '';
+        let conversionMode = 'jpeg-to-svg';
+        let currentImageData = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateQualityValue();
+        });
+
+        // File input event
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+        // Quality slider event
+        document.getElementById('qualitySlider').addEventListener('input', updateQualityValue);
+
+        function setConversionMode(mode) {
+            conversionMode = mode;
+            
+            // Update UI
+            document.getElementById('jpegToSvgBtn').classList.toggle('active', mode === 'jpeg-to-svg');
+            document.getElementById('svgToJpegBtn').classList.toggle('active', mode === 'svg-to-jpeg');
+            
+            // Update file input accept
+            const fileInput = document.getElementById('fileInput');
+            const uploadIcon = document.querySelector('.upload-icon');
+            const uploadText = document.getElementById('uploadText');
+            const uploadSubtext = document.getElementById('uploadSubtext');
+            const qualitySelector = document.getElementById('qualitySelector');
+            
+            if (mode === 'jpeg-to-svg') {
+                fileInput.accept = '.jpg,.jpeg,image/jpeg';
+                uploadIcon.textContent = '📷';
+                uploadText.textContent = 'Click to select a JPEG file';
+                uploadSubtext.textContent = 'or drag and drop your image here';
+                qualitySelector.style.display = 'none';
+                document.getElementById('downloadBtnText').textContent = 'Download SVG';
+            } else {
+                fileInput.accept = '.svg,image/svg+xml';
+                uploadIcon.textContent = '🖼️';
+                uploadText.textContent = 'Click to select an SVG file';
+                uploadSubtext.textContent = 'or drag and drop your SVG here';
+                qualitySelector.style.display = 'block';
+                document.getElementById('downloadBtnText').textContent = 'Download JPEG';
+            }
+            
+            // Reset state
+            resetConverter();
+        }
+
+        function resetConverter() {
+            currentSVGData = null;
+            currentJPEGData = null;
+            currentFileName = '';
+            currentImageData = null;
+            document.getElementById('previewContainer').style.display = 'none';
+            document.getElementById('canvasContainer').style.display = 'none';
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('statusMessage').style.display = 'none';
+            showProgress(false);
+        }
+
+        function updateQualityValue() {
+            const quality = document.getElementById('qualitySlider').value;
+            document.getElementById('qualityValue').textContent = quality + '%';
+        }
+
+        // Drag and drop events
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            if (conversionMode === 'jpeg-to-svg') {
+                handleJPEGFile(file);
+            } else {
+                handleSVGFile(file);
+            }
+        }
+
+        function handleJPEGFile(file) {
+            // Validate file type
+            if (!file.type.startsWith('image/jpeg') && !file.name.toLowerCase().match(/\.(jpg|jpeg)$/)) {
+                showStatus('Please select a valid JPEG file.', 'error');
+                return;
+            }
+
+            // Check file size (limit to 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showStatus('File size too large. Please select a file smaller than 10MB.', 'error');
+                return;
+            }
+
+            currentFileName = file.name.replace(/\.(jpg|jpeg)$/i, '');
+            showStatus('Processing image...', 'success');
+            showProgress(true);
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                processJPEGImage(e.target.result, file);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleSVGFile(file) {
+            // Validate file type
+            if (!file.type.includes('svg') && !file.name.toLowerCase().endsWith('.svg')) {
+                showStatus('Please select a valid SVG file.', 'error');
+                return;
+            }
+
+            // Check file size (limit to 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showStatus('File size too large. Please select a file smaller than 10MB.', 'error');
+                return;
+            }
+
+            currentFileName = file.name.replace(/\.svg$/i, '');
+            showStatus('Processing SVG...', 'success');
+            showProgress(true);
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                processSVGFile(e.target.result, file);
+            };
+            reader.readAsText(file);
+        }
+
+        function processSVGFile(svgContent, file) {
+            updateProgress(25);
+
+            try {
+                // Clean and prepare SVG content
+                let cleanSVG = cleanSVGContent(svgContent);
+                
+                // Create a temporary container to render the SVG
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cleanSVG;
+                const svgElement = tempDiv.querySelector('svg');
+
+                if (!svgElement) {
+                    showStatus('Invalid SVG file. No SVG element found.', 'error');
+                    showProgress(false);
+                    return;
+                }
+
+                // Get SVG dimensions with better fallback logic
+                const dimensions = getSVGDimensions(svgElement);
+                const width = dimensions.width;
+                const height = dimensions.height;
+
+                updateProgress(50);
+
+                // Create canvas and render SVG
+                const canvas = document.getElementById('renderCanvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions with device pixel ratio for better quality
+                const devicePixelRatio = window.devicePixelRatio || 1;
+                canvas.width = width * devicePixelRatio;
+                canvas.height = height * devicePixelRatio;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                ctx.scale(devicePixelRatio, devicePixelRatio);
+
+                // Fill with white background for JPEG conversion
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
+
+                // Try multiple rendering methods
+                renderSVGToCanvas(cleanSVG, canvas, ctx, width, height, file);
+
+            } catch (error) {
+                console.error('SVG processing error:', error);
+                showStatus('Error processing SVG file: ' + error.message, 'error');
+                showProgress(false);
+            }
+        }
+
+        function cleanSVGContent(svgContent) {
+            // Remove XML declaration if present
+            let cleanSVG = svgContent.replace(/<\?xml[^>]*\?>/g, '');
+            
+            // Ensure SVG has proper namespace
+            if (!cleanSVG.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                cleanSVG = cleanSVG.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+            
+            // Add xlink namespace if not present but xlink attributes are used
+            if (cleanSVG.includes('xlink:') && !cleanSVG.includes('xmlns:xlink')) {
+                cleanSVG = cleanSVG.replace('<svg', '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+            }
+            
+            return cleanSVG.trim();
+        }
+
+        function getSVGDimensions(svgElement) {
+            let width = 300; // default
+            let height = 300; // default
+
+            // Try to get width and height attributes
+            const widthAttr = svgElement.getAttribute('width');
+            const heightAttr = svgElement.getAttribute('height');
+
+            if (widthAttr && heightAttr) {
+                width = parseFloat(widthAttr.replace(/[^0-9.]/g, '')) || 300;
+                height = parseFloat(heightAttr.replace(/[^0-9.]/g, '')) || 300;
+            } else {
+                // Try viewBox
+                const viewBox = svgElement.getAttribute('viewBox');
+                if (viewBox) {
+                    const values = viewBox.split(/[\s,]+/).map(v => parseFloat(v));
+                    if (values.length >= 4) {
+                        width = values[2] - values[0];
+                        height = values[3] - values[1];
+                    }
+                } else {
+                    // Try to get computed dimensions if SVG is in DOM
+                    try {
+                        document.body.appendChild(svgElement);
+                        const rect = svgElement.getBoundingClientRect();
+                        if (rect.width > 0 && rect.height > 0) {
+                            width = rect.width;
+                            height = rect.height;
+                        }
+                        document.body.removeChild(svgElement);
+                    } catch (e) {
+                        // Fallback to default dimensions
+                    }
+                }
+            }
+
+            // Ensure reasonable dimensions
+            width = Math.max(10, Math.min(4000, width));
+            height = Math.max(10, Math.min(4000, height));
+
+            return { width, height };
+        }
+
+        function renderSVGToCanvas(svgContent, canvas, ctx, width, height, file) {
+            // Method 1: Try rendering via Image element with blob URL
+            const img = new Image();
+            const svgBlob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+
+            let renderAttempts = 0;
+            const maxAttempts = 2;
+
+            function attemptRender() {
+                renderAttempts++;
+                
+                img.onload = function() {
+                    try {
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        updateProgress(75);
+
+                        // Convert to JPEG
+                        const quality = document.getElementById('qualitySlider').value / 100;
+                        const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        currentJPEGData = jpegDataUrl;
+
+                        // Update preview
+                        updateSVGToJPEGPreview(jpegDataUrl, file, width, height, svgContent);
+
+                        // Complete progress
+                        updateProgress(100);
+                        setTimeout(() => {
+                            showProgress(false);
+                            showStatus('Conversion completed successfully!', 'success');
+                            document.getElementById('downloadBtn').disabled = false;
+                            document.getElementById('canvasContainer').style.display = 'block';
+                        }, 500);
+
+                        URL.revokeObjectURL(url);
+                    } catch (drawError) {
+                        console.error('Canvas drawing error:', drawError);
+                        if (renderAttempts < maxAttempts) {
+                            // Try alternative method
+                            tryAlternativeRender();
+                        } else {
+                            showStatus('Failed to render SVG to canvas. The SVG might contain unsupported features.', 'error');
+                            showProgress(false);
+                            URL.revokeObjectURL(url);
+                        }
+                    }
+                };
+
+                img.onerror = function(error) {
+                    console.error('Image load error:', error);
+                    if (renderAttempts < maxAttempts) {
+                        tryAlternativeRender();
+                    } else {
+                        showStatus('Error loading SVG. The file might contain external references or invalid elements.', 'error');
+                        showProgress(false);
+                        URL.revokeObjectURL(url);
+                    }
+                };
+
+                img.src = url;
+            }
+
+            function tryAlternativeRender() {
+                // Method 2: Try with data URI instead of blob URL
+                const svgDataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
+                
+                const altImg = new Image();
+                altImg.onload = function() {
+                    try {
+                        ctx.clearRect(0, 0, width, height);
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.drawImage(altImg, 0, 0, width, height);
+                        
+                        updateProgress(75);
+
+                        const quality = document.getElementById('qualitySlider').value / 100;
+                        const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        currentJPEGData = jpegDataUrl;
+
+                        updateSVGToJPEGPreview(jpegDataUrl, file, width, height, svgContent);
+
+                        updateProgress(100);
+                        setTimeout(() => {
+                            showProgress(false);
+                            showStatus('Conversion completed successfully!', 'success');
+                            document.getElementById('downloadBtn').disabled = false;
+                            document.getElementById('canvasContainer').style.display = 'block';
+                        }, 500);
+                    } catch (altError) {
+                        console.error('Alternative render error:', altError);
+                        showStatus('SVG rendering failed. This might be due to complex SVG features, external references, or browser limitations.', 'error');
+                        showProgress(false);
+                    }
+                };
+
+                altImg.onerror = function() {
+                    showStatus('Unable to render SVG. Please ensure the SVG file is valid and doesn\'t contain external references.', 'error');
+                    showProgress(false);
+                };
+
+                altImg.src = svgDataUri;
+            }
+
+            // Start the first render attempt
+            attemptRender();
+        }
+
+        function processJPEGImage(dataUrl, file) {
+            const img = new Image();
+            img.onload = function() {
+                // Update progress
+                updateProgress(50);
+
+                // Create SVG
+                const svgContent = createSVG(dataUrl, img.width, img.height);
+                currentSVGData = svgContent;
+                currentImageData = { dataUrl, width: img.width, height: img.height };
+
+                // Update preview
+                updateJPEGToSVGPreview(dataUrl, file, img.width, img.height, svgContent);
+
+                // Complete progress
+                updateProgress(100);
+                setTimeout(() => {
+                    showProgress(false);
+                    showStatus('Conversion completed successfully!', 'success');
+                    document.getElementById('downloadBtn').disabled = false;
+                }, 500);
+            };
+
+            img.onerror = function() {
+                showStatus('Error loading image. Please try another file.', 'error');
+                showProgress(false);
+            };
+
+            img.src = dataUrl;
+        }
+
+        function updateJPEGToSVGPreview(dataUrl, file, width, height, svgContent) {
+            const preview = document.getElementById('imagePreview');
+            preview.src = dataUrl;
+
+            // Update file info
+            document.getElementById('originalSize').textContent = formatFileSize(file.size);
+            document.getElementById('dimensions').textContent = `${width} × ${height}`;
+            document.getElementById('fileType').textContent = file.type;
+            document.getElementById('svgSize').textContent = formatFileSize(new Blob([svgContent]).size);
+
+            // Show preview container
+            document.getElementById('previewContainer').style.display = 'block';
+        }
+
+        function updateSVGToJPEGPreview(jpegDataUrl, file, width, height, svgContent) {
+            const preview = document.getElementById('imagePreview');
+            preview.src = jpegDataUrl;
+
+            // Calculate JPEG size
+            const jpegBlob = dataURLToBlob(jpegDataUrl);
+
+            // Update file info
+            document.getElementById('originalSize').textContent = formatFileSize(file.size);
+            document.getElementById('dimensions').textContent = `${width} × ${height}`;
+            document.getElementById('fileType').textContent = 'image/svg+xml';
+            document.getElementById('svgSize').textContent = formatFileSize(jpegBlob.size);
+
+            // Update labels for SVG to JPEG conversion
+            document.querySelector('.info-grid .info-item:first-child .info-label').textContent = 'Original SVG Size';
+            document.querySelector('.info-grid .info-item:last-child .info-label').textContent = 'JPEG Size';
+
+            // Show preview container
+            document.getElementById('previewContainer').style.display = 'block';
+        }
+
+        function dataURLToBlob(dataURL) {
+            const arr = dataURL.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+        function createSVG(dataUrl, width, height) {
+            const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+     width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <image x="0" y="0" width="${width}" height="${height}" 
+         xlink:href="${dataUrl}" />
+</svg>`;
+            return svgContent;
+        }
+
+        function updatePreview(dataUrl, file, width, height, svgContent) {
+            if (conversionMode === 'jpeg-to-svg') {
+                updateJPEGToSVGPreview(dataUrl, file, width, height, svgContent);
+            } else {
+                updateSVGToJPEGPreview(dataUrl, file, width, height, svgContent);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function downloadFile() {
+            if (conversionMode === 'jpeg-to-svg') {
+                downloadSVG();
+            } else {
+                downloadJPEG();
+            }
+        }
+
+        function downloadSVG() {
+            if (!currentSVGData) return;
+
+            const blob = new Blob([currentSVGData], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFileName + '.svg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showStatus('SVG file downloaded successfully!', 'success');
+        }
+
+        function downloadJPEG() {
+            if (!currentJPEGData) return;
+
+            // Convert data URL to blob
+            const blob = dataURLToBlob(currentJPEGData);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFileName + '.jpg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showStatus('JPEG file downloaded successfully!', 'success');
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message status-${type}`;
+            statusEl.style.display = 'block';
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function showProgress(show) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.display = show ? 'block' : 'none';
+            if (!show) {
+                updateProgress(0);
+            }
+        }
+
+        function updateProgress(percent) {
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percent + '%';
+        }
+    </script>
+</body>
+</html>
